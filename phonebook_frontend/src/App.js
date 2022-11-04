@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import personServices from "./services/persons";
 import Notification from "./components/Notification";
+import Error from "./components/Error";
 
 const Person = ({ name, number, handleDelete }) => {
 	return (
@@ -66,6 +67,7 @@ const App = () => {
 	const [search, setSearch] = useState("");
 	const [filteredList, setFilteredList] = useState([]);
 	const [notificationMessage, setNotificationMessage] = useState(null);
+	const [errorMessage, setErrorMessage] = useState(null);
 
 	useEffect(() => {
 		personServices
@@ -79,7 +81,6 @@ const App = () => {
 				`${newName} is already added to phonebook, replace the old number with a new one?`
 			)
 		) {
-			setNotificationMessage(`Changed ${newName}`);
 			const oldPerson = persons.find((p) => p.name === newName);
 			const newPerson = {
 				...oldPerson,
@@ -96,17 +97,16 @@ const App = () => {
 							p.id === oldPerson.id ? returnedPerson : p
 						)
 					);
+					setNotificationMessage(`Changed ${newName}`);
 					setTimeout(() => {
 						setNotificationMessage(null);
 					}, 3000);
 				})
-				.catch((err) => {
-					setNotificationMessage(
-						`Information of ${newName} has already been removed from the server`
-					);
-					setPersons(persons.filter((p) => p.name !== newName));
+				.catch((error) => {
+					console.log(error.response.data.error);
+					setErrorMessage(error.response.data.error);
 					setTimeout(() => {
-						setNotificationMessage(null);
+						setErrorMessage(null);
 					}, 3000);
 				});
 		}
@@ -114,7 +114,6 @@ const App = () => {
 
 	const handleAdd = (e) => {
 		e.preventDefault();
-		setNotificationMessage(`Added ${newName}`);
 
 		const checkName = (obj) => obj.name === newName;
 
@@ -125,16 +124,28 @@ const App = () => {
 				name: newName,
 				number: newNumber,
 			};
-			personServices.create(newPerson).then((addedPerson) => {
-				console.log(addedPerson);
-				setPersons(persons.concat(addedPerson));
-				setNewName("");
-				setNewNumber("");
-			});
+			personServices
+				.create(newPerson)
+				.then((addedPerson) => {
+					console.log(addedPerson);
+					setPersons(persons.concat(addedPerson));
+					setNewName("");
+					setNewNumber("");
+					setNotificationMessage(`Added ${newName}`);
+					setTimeout(() => {
+						setNotificationMessage(null);
+					}, 3000);
+				})
+				.catch((error) => {
+					console.log(error.response.data.error);
+					setErrorMessage(error.response.data.error);
+					setTimeout(() => {
+						setErrorMessage(null);
+					}, 3000);
+					setNewNumber("");
+					setNewName("");
+				});
 		}
-		setTimeout(() => {
-			setNotificationMessage(null);
-		}, 3000);
 	};
 
 	const handleNameInput = (e) => {
@@ -171,6 +182,7 @@ const App = () => {
 		<div>
 			<Title title={"Phonebook"} />
 			<Notification message={notificationMessage} />
+			<Error message={errorMessage} />
 			<Filter search={search} handleSearch={handleSearch} />
 			<Title title={"add a new"} />
 			<PersonForm
